@@ -17,7 +17,12 @@ const int PWM_B   = 11;
 const int DIR_B   = 13;
 const int BRAKE_B = 8;
 
-// One-time setup code
+/**
+ * This function is called once, at the beginning of the application and
+ * after each "reset" of the arduino.  In this function, we do things like
+ * configure the proximity sensor, initialize the console serial port, and
+ * configure each of the pins.
+ */
 void setup() 
 {
   delay(2000);
@@ -40,7 +45,10 @@ void setup()
 }
 
 
-
+/**
+ * This is the main loop function.  This will be called over and
+ * over and over again for as long as the program is running.
+ */
 void loop() {  
   
   // start moving!!
