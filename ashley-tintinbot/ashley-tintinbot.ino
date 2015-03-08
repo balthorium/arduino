@@ -17,6 +17,9 @@ const int PWM_B   = 11;
 const int DIR_B   = 13;
 const int BRAKE_B = 8;
 
+// constant for LED pin
+const int GREEN_LED = 2;
+
 // One-time setup code
 void setup() 
 {
@@ -30,20 +33,47 @@ void setup()
   
   //initialize serial port to console
   Serial.begin(9600);
-  Serial.println("Hi there, I've started! :D");
+
+  // initialize indicator LED
+  pinMode(GREEN_LED, OUTPUT);
   
   // initialize motor pins
   pinMode(DIR_A, OUTPUT);
   pinMode(BRAKE_A, OUTPUT);
   pinMode(DIR_B, OUTPUT);
-  pinMode(BRAKE_B, OUTPUT);    
+  pinMode(BRAKE_B, OUTPUT);  
 }
-
-
 
 void loop() {  
   
-  // start moving!!
+  // turn on green LED to indicate main loop has started
+  digitalWrite(GREEN_LED, HIGH);
+
+  // calibrate proximity sensing threshold
+  Serial.println("Proximity calibation started...");
+  unsigned int threshold = 0;
+  for (int i = 0; i < 10; ++i) {
+      unsigned int reading = readProximity();
+      Serial.print("Calibration reading is: ");
+      Serial.println(reading, DEC);
+      threshold += reading;
+      delay(500);
+  }
+  threshold = threshold / 10;
+  Serial.println("Proximity calibation completed, threshold is: ");
+  Serial.println(threshold, DEC);
+
+  // five second delay between calibration and running  
+  Serial.println("Main loop will start in 2 seconds.");
+  for (int i = 0; i < 20; ++i) {
+      digitalWrite(2, (i%2 ? HIGH : LOW));
+      delay(250);
+  }
+
+  // turn on green LED to indicate run has started
+  digitalWrite(GREEN_LED, HIGH);
+
+  // start moving forward
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
   digitalWrite(DIR_A, LOW);
@@ -54,17 +84,22 @@ void loop() {
   // keep moving until we see something in front of us
   unsigned int proximity = readProximity();
   Serial.println(proximity, DEC);
-  while (proximity < 2200) {
+  while (proximity < threshold) {
     Serial.println(proximity, DEC);
     proximity = readProximity();
   }
 
-  // stop moving!!
+  // stop moving
   analogWrite(PWM_A, 0);
   analogWrite(PWM_B, 0);
   digitalWrite(BRAKE_A, HIGH);
   digitalWrite(BRAKE_B, HIGH);
   
+  Serial.println("Done.");
+
+  pinMode(2, OUTPUT);
+  digitalWrite(2, LOW);
+
   while(true) { }
   
 }
