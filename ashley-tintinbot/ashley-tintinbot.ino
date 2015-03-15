@@ -50,7 +50,7 @@ void setup()
 }
 
 
-void calibrate() {
+unsigned int calibrate() {
   
   // calibrate proximity sensing threshold
   Serial.println("Proximity calibation started...");
@@ -66,12 +66,46 @@ void calibrate() {
   Serial.println("Proximity calibation completed, threshold is: ");
   Serial.println(threshold, DEC);
 
-  // five second delay between calibration and running  
+  return threshold;
+}
+
+
+void forwardMarch() {
+  digitalWrite(BRAKE_A, LOW);
+  digitalWrite(BRAKE_B, LOW);
+  digitalWrite(DIR_A, LOW);
+  digitalWrite(DIR_B, HIGH);
+  analogWrite(PWM_A, 255);
+  analogWrite(PWM_B, 255);
+}
+
+
+void continueUntilObstacle(unsigned int threshold) {
+unsigned int proximity = readProximity();
+  Serial.println(proximity, DEC);
+  while (proximity < threshold) {
+    Serial.println(proximity, DEC);
+    proximity = readProximity();
+  }
+  Serial.print("Exiting continueUntilObstacle at proximity: ");
+  Serial.println(proximity);
+}
+
+
+void blinkLED() {
   Serial.println("Main loop will start in 2 seconds.");
   for (int i = 0; i < 20; ++i) {
-      digitalWrite(2, (i%2 ? HIGH : LOW));
+      digitalWrite(GREEN_LED, (i%2 ? HIGH : LOW));
       delay(250);
   }
+}
+
+
+void stopMoving() {
+  analogWrite(PWM_A, 0);
+  analogWrite(PWM_B, 0);
+  digitalWrite(BRAKE_A, HIGH);
+  digitalWrite(BRAKE_B, HIGH);
 }
 
 
@@ -85,43 +119,32 @@ void loop() {
   digitalWrite(GREEN_LED, HIGH);
 
   // do initial calibration
-  calibrate();
+  unsigned int threshold = calibrate();
   
+   // five second delay between calibration and running  
+  blinkLED();
+
   // turn on green LED to indicate run has started
   digitalWrite(GREEN_LED, HIGH);
 
-  // start moving forward
-  digitalWrite(BRAKE_A, LOW);
-  digitalWrite(BRAKE_B, LOW);
-  digitalWrite(DIR_A, LOW);
-  digitalWrite(DIR_B, HIGH);
-  analogWrite(PWM_A, 255);
-  analogWrite(PWM_B, 255);
+  // go forward
+  forwardMarch();  
 
   // keep moving until we see something in front of us
-  unsigned int proximity = readProximity();
-  Serial.println(proximity, DEC);
-  while (proximity < threshold) {
-    Serial.println(proximity, DEC);
-    proximity = readProximity();
-  }
-  Serial.print("Exiting loop at proximity: ");
-  Serial.println(proximity);
-
-  // stop moving
-  analogWrite(PWM_A, 0);
-  analogWrite(PWM_B, 0);
-  digitalWrite(BRAKE_A, HIGH);
-  digitalWrite(BRAKE_B, HIGH);
+  continueUntilObstacle(threshold);
   
+  // stop moving
+  stopMoving();
+ 
   Serial.println("Done.");
-
-  pinMode(2, OUTPUT);
-  digitalWrite(2, LOW);
+ 
+  digitalWrite(GREEN_LED, LOW);
 
   while(true) { }
 }
 
+
+//////////////////////////////////////////////////////////////
 
 unsigned int readProximity()
 {
