@@ -49,19 +49,9 @@ void setup()
   pinMode(BRAKE_B, OUTPUT);  
 }
 
-<<<<<<< HEAD
-=======
 
-/**
- * This is the main loop function.  This will be called over and
- * over and over again for as long as the program is running.
- */
->>>>>>> 03dd2beeac107beade8efc7ed80cc8e60d5d6ad8
-void loop() {  
+void calibrate() {
   
-  // turn on green LED to indicate main loop has started
-  digitalWrite(GREEN_LED, HIGH);
-
   // calibrate proximity sensing threshold
   Serial.println("Proximity calibation started...");
   unsigned int threshold = 0;
@@ -82,7 +72,21 @@ void loop() {
       digitalWrite(2, (i%2 ? HIGH : LOW));
       delay(250);
   }
+}
 
+
+/**
+ * This is the main loop function.  This will be called over and
+ * over and over again for as long as the program is running.
+ */
+void loop() {  
+  
+  // turn on green LED to indicate main loop has started
+  digitalWrite(GREEN_LED, HIGH);
+
+  // do initial calibration
+  calibrate();
+  
   // turn on green LED to indicate run has started
   digitalWrite(GREEN_LED, HIGH);
 
@@ -101,6 +105,8 @@ void loop() {
     Serial.println(proximity, DEC);
     proximity = readProximity();
   }
+  Serial.print("Exiting loop at proximity: ");
+  Serial.println(proximity);
 
   // stop moving
   analogWrite(PWM_A, 0);
@@ -114,7 +120,6 @@ void loop() {
   digitalWrite(2, LOW);
 
   while(true) { }
-  
 }
 
 
