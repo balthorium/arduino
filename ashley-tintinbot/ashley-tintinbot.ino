@@ -20,6 +20,9 @@ const int BRAKE_B = 8;
 // constant for LED pin
 const int GREEN_LED = 2;
 
+// constant for proximity error
+const int MARGIN_OF_ERROR = 20;
+
 /**
  * This function is called once, at the beginning of the application and
  * after each "reset" of the arduino.  In this function, we do things like
@@ -50,7 +53,10 @@ void setup()
 }
 
 
-unsigned int calibrate() {
+/*******************************************************
+ * Do calibration of proximity sensor threshold.
+ *******************************************************/
+ unsigned int calibrate() {
   
   // calibrate proximity sensing threshold
   Serial.println("Proximity calibation started...");
@@ -70,6 +76,10 @@ unsigned int calibrate() {
 }
 
 
+/*******************************************************
+ * Move forward.
+ *******************************************************/
+
 void forwardMarch() {
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
@@ -80,8 +90,13 @@ void forwardMarch() {
 }
 
 
+/*******************************************************
+ * Continue with previous instructions until an
+ * obstacle is detected.
+ *******************************************************/
+
 void continueUntilObstacle(unsigned int threshold) {
-unsigned int proximity = readProximity();
+  unsigned int proximity = readProximity();
   Serial.println(proximity, DEC);
   while (proximity < threshold) {
     Serial.println(proximity, DEC);
@@ -92,6 +107,10 @@ unsigned int proximity = readProximity();
 }
 
 
+/*******************************************************
+ * Blink green LED.
+ *******************************************************/
+
 void blinkLED() {
   Serial.println("Main loop will start in 2 seconds.");
   for (int i = 0; i < 20; ++i) {
@@ -101,6 +120,10 @@ void blinkLED() {
 }
 
 
+/*******************************************************
+ * Stop moving.
+ *******************************************************/
+
 void stopMoving() {
   analogWrite(PWM_A, 0);
   analogWrite(PWM_B, 0);
@@ -109,10 +132,82 @@ void stopMoving() {
 }
 
 
-/**
+/*******************************************************
+ * Turn left.
+ *******************************************************/
+
+void leftMarch() {
+  analogWrite(PWM_A, 0);
+  digitalWrite(BRAKE_A, HIGH);
+  digitalWrite(BRAKE_B, LOW);
+  digitalWrite(DIR_B, HIGH);
+  analogWrite(PWM_B, 255);  
+}
+
+
+/*******************************************************
+ * Compute average.
+ *******************************************************/
+
+double computeAverate(unsigned int lastTenPRs[], int length) {
+  int sum = 0;
+  int i = 0;
+  while (i < length) {
+    sum = sum + lastTen[i];
+    i++;
+  }
+  return sum / length;
+}
+
+/*******************************************************
+ * Compute standard deviation.
+ *******************************************************/
+
+double computeStandardDeviation(unsigned int lastTenPRs[], int length, double average) {
+  int numerator = 0;
+  int i = 0;
+  while (i < length) {
+    numerator = numerator + pow(lastTen[i] - average, 2);
+  }
+  double sigma = sqrt(numerator / length);
+}
+
+/*******************************************************
+ * Continue until least obstructed.
+ *******************************************************/
+void continueUntilLeastObstructed() {
+  unsigned int lastTenPRs[10];
+  
+  // just read first 10 proximity readings
+  int i = 0;
+  while (i < 10) {
+    lastTen[i] = readProximity();
+    i++;
+    delay(10);
+  } 
+  
+  double average = computeAverage(lastTen, 10);
+  double sigma = computeStandardDeviation(lastTen, 10, average);
+}
+
+
+/*******************************************************
+ * Move backwards.
+ *******************************************************/
+ 
+ void backwardsMarch() {
+  digitalWrite(BRAKE_A, LOW);
+  digitalWrite(BRAKE_B, LOW);
+  digitalWrite(DIR_A, HIGH);
+  digitalWrite(DIR_B, LOW);
+  analogWrite(PWM_A, 255);
+  analogWrite(PWM_B, 255);
+}
+ 
+/******************************************************************
  * This is the main loop function.  This will be called over and
  * over and over again for as long as the program is running.
- */
+ ******************************************************************/
 void loop() {  
   
   // turn on green LED to indicate main loop has started
@@ -136,6 +231,15 @@ void loop() {
   // stop moving
   stopMoving();
  
+  backwardsMarch();
+  delay(500); 
+
+  leftMarch();
+
+  continueUntilLeastObstructed();
+  
+  stopMoving();
+
   Serial.println("Done.");
  
   digitalWrite(GREEN_LED, LOW);
