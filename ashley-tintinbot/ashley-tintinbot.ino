@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <Time.h>  
 
 // constants for proximity sensor
 #define VCNL4000_ADDRESS 0x13  // 0x26 write, 0x27 read
@@ -119,15 +120,22 @@ void forwardMarch() {
  * obstacle is detected.
  *******************************************************/
 
-void continueUntilObstacle(unsigned int threshold) {
+boolean continueUntilObstacle(unsigned int threshold, unsigned int maxTimeInSeconds) {
+  boolean retval = true;
+  unsigned int startTime = now();
   unsigned int proximity = readProximity();
   Serial.println(proximity, DEC);
   while (proximity < threshold) {
     Serial.println(proximity, DEC);
     proximity = readProximity();
+    if ((maxTimeInSeconds > 0) && (maxTimeInSeconds < now() - startTime)) {
+      retval = false;
+      break;
+    }
   }
   Serial.print("Exiting continueUntilObstacle at proximity: ");
   Serial.println(proximity);
+  return retval;
 }
 
 
@@ -165,7 +173,7 @@ void leftMarch() {
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
   digitalWrite(DIR_A, HIGH);
-  digitalWrite(DIR_A, HIGH);
+  digitalWrite(DIR_B, HIGH);
   analogWrite(PWM_A, 255);  
   analogWrite(PWM_B, 255);  
 }
@@ -179,7 +187,7 @@ void rightMarch() {
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
   digitalWrite(DIR_A, LOW);
-  digitalWrite(DIR_A, LOW);
+  digitalWrite(DIR_B, LOW);
   analogWrite(PWM_A, 255);  
   analogWrite(PWM_B, 255);  
 }
@@ -215,39 +223,40 @@ void backwardsMarchUntilSecondThreshold(unsigned int thresholdTwo) {
 }
 
 
-/*******************************************************
- * Infared reading
- ********************************************************/
-void readInfrared() {
-  while(true) {
-    int val = analogRead(IRinputAnalogPin);
-    String outputString = "Signal Strength: ";
-    outputString += val; 
-    Serial.println(outputString);
-    delay(100);
-  }
-}
-
-
 /*********************************************************
  * Finding direction of Sun
  *********************************************************/
-void directionOfSun() {
+void directionOfSun(int counter) {
   int turnTime = 200;
   int sampleTime = 200;
   delay(sampleTime);
   int r1 = analogRead(IRinputAnalogPin);
-  leftMarch(); 
+  if (counter % 2 == 0) {
+    leftMarch();
+  }
+  else {
+    rightMarch();
+  }
   delay(turnTime);
   stopMarch();
   delay(sampleTime);
   int r2 = analogRead(IRinputAnalogPin);
-  leftMarch(); 
+  if (counter % 2 == 0) {
+    leftMarch();
+  }
+  else {
+    rightMarch();
+  }
   delay(turnTime);
   stopMarch();
   int r3 = analogRead(IRinputAnalogPin);
-  while (r3 > r1 || r3 > r2){
-    leftMarch(); 
+  while (r3 >= r1 || r3 >= r2){
+    if (counter % 2 == 0) {
+      leftMarch();
+    }
+    else {
+      rightMarch();
+    } 
     delay(turnTime);
     stopMarch();
     r1 = r2;
@@ -255,7 +264,12 @@ void directionOfSun() {
     delay(sampleTime);
     r3 = analogRead(IRinputAnalogPin);
   }
-  rightMarch();
+  if (counter % 2 == 0) {
+    rightMarch();
+  }
+  else {
+    leftMarch();
+  }
   delay(turnTime * 2);
   stopMarch();
 }
@@ -265,10 +279,6 @@ void directionOfSun() {
  * over and over again for as long as the program is running.
  ******************************************************************/
 void loop() {  
-
-  //Look for sun
-  directionOfSun();
-  while(true);
 
   // turn on green LED to indicate main loop has started
   digitalWrite(GREEN_LED, HIGH);
@@ -290,12 +300,24 @@ void loop() {
   // turn on green LED to indicate run has started
   digitalWrite(GREEN_LED, HIGH);
 
+  int counter = 0;
   while(true) {
+
+    //Look for sun
+    directionOfSun(counter);
+
     // go forward
     forwardMarch();  
 
     // keep moving until we see something in front of us
-    continueUntilObstacle(threshold);
+    while(continueUntilObstacle(threshold, 2) == false){
+      stopMarch();
+      if (analogRead(IRinputAnalogPin) >= 22) {
+        while(true);
+      }
+      directionOfSun(++counter);
+      forwardMarch();
+    }
 
     // stop moving
     stopMarch();
@@ -304,10 +326,27 @@ void loop() {
     backwardsMarchUntilSecondThreshold(thresholdTwo); 
     delay(200);
 
-    leftMarch();
-    delay(1250);
+    if (counter % 2 == 0) {
+      leftMarch();
+    }
+    else {
+      rightMarch();
+    }
+    delay(500);
+
+    // go forward
+    forwardMarch();  
+
+    // keep moving until we see something in front of us
+    if (continueUntilObstacle(threshold, 2) == false) {
+
+      // if we ran into something move backwards until second threshold is reached
+      backwardsMarchUntilSecondThreshold(thresholdTwo); 
+    }
 
     stopMarch();
+
+    counter++;
   }
 
   Serial.println("Done.");
@@ -371,6 +410,11 @@ byte readByte(byte address)
   data = Wire.read();
   return data;
 }
+
+
+
+
+
 
 
 
