@@ -15,6 +15,6 @@ void loop()
   String outputString = "Signal Strength: ";
  outputString += val; 
   Serial.println(outputString);
-  delay(500);
+  delay(100);
 }
 

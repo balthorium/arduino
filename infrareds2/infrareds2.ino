@@ -14,7 +14,7 @@ void loop()
     Serial.println("It is very still here...");
   }
   else {
-    Serial.println("Someone is MOVING!!!");
+    Serial.println("SOMEONE IS MOVING!!!");
   }
   
   delay(100);
