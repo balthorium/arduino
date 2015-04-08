@@ -8,6 +8,7 @@
 #define PROXIMITY_RESULT_LSB 0x88
 #define PROXIMITY_FREQ 0x89
 #define PROXIMITY_MOD 0x8A
+#define IRinputAnalogPin 0
 
 // constants for motor pins
 const int PWM_A   = 3;
@@ -23,6 +24,7 @@ const int GREEN_LED = 2;
 // constant for proximity error
 const int MARGIN_OF_ERROR = 20;
 
+
 /**
  * This function is called once, at the beginning of the application and
  * after each "reset" of the arduino.  In this function, we do things like
@@ -32,19 +34,19 @@ const int MARGIN_OF_ERROR = 20;
 void setup() 
 {
   delay(2000);
-  
+
   // configure proximity sensor
   Wire.begin();
   writeByte(IR_CURRENT, 20);
   writeByte(PROXIMITY_FREQ, 2);
   writeByte(PROXIMITY_MOD, 0x81);
-  
+
   //initialize serial port to console
   Serial.begin(9600);
 
   // initialize indicator LED
   pinMode(GREEN_LED, OUTPUT);
-  
+
   // initialize motor pins
   pinMode(DIR_A, OUTPUT);
   pinMode(BRAKE_A, OUTPUT);
@@ -56,17 +58,17 @@ void setup()
 /*******************************************************
  * Do calibration of proximity sensor threshold.
  *******************************************************/
- unsigned int calibrate() {
-  
+unsigned int calibrate() {
+
   // calibrate proximity sensing threshold
   Serial.println("Proximity calibation started...");
   unsigned int threshold = 0;
   for (int i = 0; i < 10; ++i) {
-      unsigned int reading = readProximity();
-      Serial.print("Calibration reading is: ");
-      Serial.println(reading, DEC);
-      threshold += reading;
-      delay(500);
+    unsigned int reading = readProximity();
+    Serial.print("Calibration reading is: ");
+    Serial.println(reading, DEC);
+    threshold += reading;
+    delay(500);
   }
   threshold = threshold / 10;
   Serial.println("Proximity calibation completed, threshold is: ");
@@ -79,17 +81,17 @@ void setup()
  * Do a second calibration of proximity sensor threshold
  * for turning.
  *******************************************************/
-  unsigned int calibrateTwo() {
-  
+unsigned int calibrateTwo() {
+
   // calibrate proximity sensing threshold
   Serial.println("Second proximity calibation started...");
   unsigned int thresholdTwo = 0;
   for (int i = 0; i < 10; ++i) {
-      unsigned int reading = readProximity();
-      Serial.print("Second calibration reading is: ");
-      Serial.println(reading, DEC);
-      thresholdTwo += reading;
-      delay(500);
+    unsigned int reading = readProximity();
+    Serial.print("Second calibration reading is: ");
+    Serial.println(reading, DEC);
+    thresholdTwo += reading;
+    delay(500);
   }
   thresholdTwo = thresholdTwo / 10;
   Serial.println("Second Proximity calibation completed, threshold is: ");
@@ -136,8 +138,8 @@ void continueUntilObstacle(unsigned int threshold) {
 void blinkLED() {
   Serial.println("Main loop will start in 2 seconds.");
   for (int i = 0; i < 20; ++i) {
-      digitalWrite(GREEN_LED, (i%2 ? HIGH : LOW));
-      delay(250);
+    digitalWrite(GREEN_LED, (i%2 ? HIGH : LOW));
+    delay(250);
   }
 }
 
@@ -146,7 +148,7 @@ void blinkLED() {
  * Stop moving.
  *******************************************************/
 
-void stopMoving() {
+void stopMarch() {
   analogWrite(PWM_A, 0);
   analogWrite(PWM_B, 0);
   digitalWrite(BRAKE_A, HIGH);
@@ -161,63 +163,34 @@ void stopMoving() {
 void leftMarch() {
   analogWrite(PWM_A, 0);
   digitalWrite(BRAKE_A, LOW);
-  digitalWrite(BRAKE_B, HIGH);
+  digitalWrite(BRAKE_B, LOW);
+  digitalWrite(DIR_A, HIGH);
   digitalWrite(DIR_A, HIGH);
   analogWrite(PWM_A, 255);  
-}
-
-
-/*******************************************************
- * Compute average.
- *******************************************************/
-
-/*double computeAverate(unsigned int lastTenPRs[], int length) {
-  int sum = 0;
-  int i = 0;
-  while (i < length) {
-    sum = sum + lastTen[i];
-    i++;
-  }
-  return sum / length;
+  analogWrite(PWM_B, 255);  
 }
 
 /*******************************************************
- * Compute standard deviation.
+ * Turn Right.
  *******************************************************/
 
-/*double computeStandardDeviation(unsigned int lastTenPRs[], int length, double average) {
-  int numerator = 0;
-  int i = 0;
-  while (i < length) {
-    numerator = numerator + pow(lastTen[i] - average, 2);
-  }
-  double sigma = sqrt(numerator / length);
+void rightMarch() {
+  analogWrite(PWM_A, 0);
+  digitalWrite(BRAKE_A, LOW);
+  digitalWrite(BRAKE_B, LOW);
+  digitalWrite(DIR_A, LOW);
+  digitalWrite(DIR_A, LOW);
+  analogWrite(PWM_A, 255);  
+  analogWrite(PWM_B, 255);  
 }
 
-/*******************************************************
- * Continue until least obstructed.
- *******************************************************/
-/*void continueUntilLeastObstructed() {
-  unsigned int lastTenPRs[10];
-  
-  // just read first 10 proximity readings
-  int i = 0;
-  while (i < 10) {
-    lastTen[i] = readProximity();
-    i++;
-    delay(10);
-  } 
-  
-  double average = computeAverage(lastTen, 10);
-  double sigma = computeStandardDeviation(lastTen, 10, average);
-}
 
 
 /*******************************************************
  * Move backwards.
  *******************************************************/
- 
- void backwardsMarch() {
+
+void backwardsMarch() {
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
   digitalWrite(DIR_A, HIGH);
@@ -225,72 +198,124 @@ void leftMarch() {
   analogWrite(PWM_A, 255);
   analogWrite(PWM_B, 255);
 }
- 
- /*******************************************************
+
+
+/*******************************************************
  * Move backwards until second threshold is hit.
  *******************************************************/
- 
- void backwardsMarchUntilSecondThreshold(unsigned int thresholdTwo) {
-   backwardsMarch();
-   unsigned int proximity = readProximity();
-   while (proximity > thresholdTwo) {
-     delay(10);
-     proximity = readProximity();
-   }
-   stopMoving();
- }
- 
+
+void backwardsMarchUntilSecondThreshold(unsigned int thresholdTwo) {
+  backwardsMarch();
+  unsigned int proximity = readProximity();
+  while (proximity > thresholdTwo) {
+    delay(10);
+    proximity = readProximity();
+  }
+  stopMarch();
+}
+
+
+/*******************************************************
+ * Infared reading
+ ********************************************************/
+void readInfrared() {
+  while(true) {
+    int val = analogRead(IRinputAnalogPin);
+    String outputString = "Signal Strength: ";
+    outputString += val; 
+    Serial.println(outputString);
+    delay(100);
+  }
+}
+
+
+/*********************************************************
+ * Finding direction of Sun
+ *********************************************************/
+void directionOfSun() {
+  int turnTime = 200;
+  int sampleTime = 200;
+  delay(sampleTime);
+  int r1 = analogRead(IRinputAnalogPin);
+  leftMarch(); 
+  delay(turnTime);
+  stopMarch();
+  delay(sampleTime);
+  int r2 = analogRead(IRinputAnalogPin);
+  leftMarch(); 
+  delay(turnTime);
+  stopMarch();
+  int r3 = analogRead(IRinputAnalogPin);
+  while (r3 > r1 || r3 > r2){
+    leftMarch(); 
+    delay(turnTime);
+    stopMarch();
+    r1 = r2;
+    r2 = r3;
+    delay(sampleTime);
+    r3 = analogRead(IRinputAnalogPin);
+  }
+  rightMarch();
+  delay(turnTime * 2);
+  stopMarch();
+}
+
 /******************************************************************
  * This is the main loop function.  This will be called over and
  * over and over again for as long as the program is running.
  ******************************************************************/
 void loop() {  
-  
+
+  //Look for sun
+  directionOfSun();
+  while(true);
+
   // turn on green LED to indicate main loop has started
   digitalWrite(GREEN_LED, HIGH);
 
   // do initial calibration
   unsigned int threshold = calibrate();
-  
+
   // move backwards
   backwardsMarch();
   delay(1000); 
-  stopMoving();
-  
+  stopMarch();
+
   // do second calibration
   unsigned int thresholdTwo = calibrateTwo();
-  
+
   // five second delay between calibration and running  
   blinkLED();
 
   // turn on green LED to indicate run has started
   digitalWrite(GREEN_LED, HIGH);
- 
+
   while(true) {
     // go forward
     forwardMarch();  
-  
+
     // keep moving until we see something in front of us
     continueUntilObstacle(threshold);
-    
+
     // stop moving
-    stopMoving();
-   
-   // move backwards until second threshold is reached
+    stopMarch();
+
+    // move backwards until second threshold is reached
     backwardsMarchUntilSecondThreshold(thresholdTwo); 
     delay(200);
-    
+
     leftMarch();
     delay(1250);
-    
-    stopMoving();
+
+    stopMarch();
   }
-  
+
   Serial.println("Done.");
- 
+
   digitalWrite(GREEN_LED, LOW);
 
-  while(true) { }
+  while(true) { 
+  }
 }
 
 
@@ -302,7 +327,7 @@ unsigned int readProximity()
   byte originalValue;
   byte newValue;
   byte updateValue;
-  
+
   // tell proximity sensor to start reading
   originalValue = readByte(COMMAND_0);
   newValue = originalValue | 0x08;
@@ -315,11 +340,11 @@ unsigned int readProximity()
   while( !(updateValue & 0x20)) {
     updateValue = readByte(COMMAND_0);
   }
-  
+
   // assign to data the value read from proximity sensor
   data = readByte(PROXIMITY_RESULT_MSB) << 8;
   data |= readByte(PROXIMITY_RESULT_LSB);
-  
+
   return data;
 }
 
@@ -335,7 +360,7 @@ void writeByte(byte address, byte data)
 byte readByte(byte address)
 {
   byte data;
-  
+
   Wire.beginTransmission(VCNL4000_ADDRESS);
   Wire.write(address);
   Wire.endTransmission();
@@ -346,4 +371,8 @@ byte readByte(byte address)
   data = Wire.read();
   return data;
 }
- 
+
+
+
+
+
